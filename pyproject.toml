@@ -1,0 +1,101 @@
+[tool.poetry]
+name = "taiga-to-bpm"
+version = "0.1.0"
+description = ""
+authors = ["sumarokov <sumarokov.vp@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sl-creatio-connector = "^0.1.7"
+pytelegrambotapi = "^4.16.1"
+python-dotenv = "^1.0.1"
+psycopg = {extras = ["binary"], version = "^3.1.18"}
+prettytable = "^3.10.0"
+
+
+[tool.poetry.group.dev.dependencies]
+debugpy = "^1.8.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".",
+  "db",
+  "easy_p2p",
+  "back_office",
+]
+
+[tool.pyright]
+stubPath = "/stubs"
+venv= ".venv"
+venvPath = "."
+reportUnusedVariable = false
+reportUnusedImport = false
+severityLevel = "none"
+# ignore= [
+#   "stubs/",
+#   "alembic/",
+#   "env_.py",
+#   "easy_p2p/__main__.py",
+# ]
+exclude= [
+  "stubs/",
+  "alembic/",
+  "env_.py",
+  ".venv",
+]
+
+[tool.isort]
+import_heading_stdlib= "Standard Library"
+import_heading_thirdparty= "Third Party Stuff"
+import_heading_firstparty= "My Stuff"
+
+multi_line_output= 5
+line_length= 60
+combine_as_imports= "True"
+include_trailing_comma= "True"
+force_grid_wrap= 2
+
+[tool.mypy]
+pythonpath = ".venv/lib/python3.12/site-packages"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
+exclude = [
+  'stubs/',
+]
+
+[[tool.mypy.overrides]]
+module = "sl_creatio_connector.*"
+ignore_missing_imports = true
+
+[tool.ruff]
+# 1. Enable flake8-bugbear (`B`) rules, in addition to the defaults.
+select = [
+  "E",
+  "F",
+  # "B",
+  # "N", 
+  # "C", 
+  # "T", 
+  # "W",
+]
+ignore = [
+  "E712", # comparison-with-callable use "is" instead of "=="
+  "E711", # comparison-with-callable use "is" instead of "=="
+]
+# 3. Avoid trying to fix flake8-bugbear (`B`) violations.
+unfixable = ["B"]
+exclude = [
+  'db/alchemy_models\.py$',
+  'stubs/',
+  'alembic/',
+]
+
+[tool.ruff.lint.per-file-ignores]
+"easy_p2p/__main__.py" = [
+  "F401", # disable unused imports for main.py - import handlers from other files
+  "E402", # disable module level import not at top of file for main.py - import handlers from other files
+]
