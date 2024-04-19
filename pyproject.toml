@@ -12,6 +12,13 @@ pytelegrambotapi = "^4.16.1"
 python-dotenv = "^1.0.1"
 psycopg = {extras = ["binary"], version = "^3.1.18"}
 prettytable = "^3.10.0"
+pydantic = "^2.7.0"
+redis = "^5.0.3"
+mypy = "^1.9.0"
+mkdocs = "^1.5.3"
+mkdocs-material = "^9.5.18"
+mkdocstrings = "^0.24.3"
+mkdocstrings-python = "^1.9.2"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -63,9 +70,7 @@ force_grid_wrap= 2
 [tool.mypy]
 pythonpath = ".venv/lib/python3.12/site-packages"
 mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
-exclude = [
-  'stubs/',
-]
+exclude = [ './stubs' ]
 
 [[tool.mypy.overrides]]
 module = "sl_creatio_connector.*"
@@ -73,7 +78,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 # 1. Enable flake8-bugbear (`B`) rules, in addition to the defaults.
-select = [
+lint.select = [
   "E",
   "F",
   # "B",
@@ -82,12 +87,12 @@ select = [
   # "T", 
   # "W",
 ]
-ignore = [
+lint.ignore = [
   "E712", # comparison-with-callable use "is" instead of "=="
   "E711", # comparison-with-callable use "is" instead of "=="
 ]
 # 3. Avoid trying to fix flake8-bugbear (`B`) violations.
-unfixable = ["B"]
+lint.unfixable = ["B"]
 exclude = [
   'db/alchemy_models\.py$',
   'stubs/',

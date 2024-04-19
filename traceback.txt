@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/vladimirsumarokov/dev/taiga_to_bpm/bot_interface/commands.py", line 92, in callback_close_topay_project
+    receipt = create_receipt(project_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vladimirsumarokov/dev/taiga_to_bpm/taiga_to_bpm/creatio_worker.py", line 40, in create_receipt
+    "SLTrelloDeskId": tasks[0].desk_guid,
+                      ~~~~~^^^
+IndexError: list index out of range

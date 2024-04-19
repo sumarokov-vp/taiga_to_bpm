@@ -1,20 +1,22 @@
 # Standard Library
 
+# Standard Library
 from dataclasses import dataclass
 from os import environ
 from typing import List
 
-from sl_creatio_connector.creatio import Creatio
-from sl_creatio_connector.constants import ODATA_version
-
 # Third Party Stuff
 from psycopg import connect
 from psycopg.rows import TupleRow
+from sl_creatio_connector.constants import ODATA_version
+from sl_creatio_connector.creatio import Creatio
 
 
 def create_receipt(project_id: int) -> str:
     tasks = get_tasks(project_id)
-    bpm_settings = get_creatio_settings()
+    if not tasks or len(tasks) == 0:
+        return "Таски для закрытия не найдены"
+    bpm_settings = get_creatio_settings()[0]
     if not bpm_settings:
         raise ValueError("BPM settings not found")
 
@@ -137,7 +139,7 @@ FROM
         ON assigned_bpm_user.user_id = assigned_to_id
 WHERE
 	status_id = fields.topay_status_id
-    AND story.project_id = %(project_id)s;
+    AND task.project_id = %(project_id)s;
 """,
                 {"project_id": project_id},
             )

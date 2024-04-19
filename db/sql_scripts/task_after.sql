@@ -1,11 +1,11 @@
-CREATE OR REPLACE FUNCTION public.task_after ()
-	RETURNS TRIGGER
-	LANGUAGE plpgsql
-	AS $function$
+create or replace function public.task_after()
+returns trigger
+language plpgsql
+as
+    $function$
 DECLARE
 	estimated_status int4;
 BEGIN
-
   -- if task is not in sprint, update user story status:
   --    if all tasks in user story are estimated, update user story status to estimated
   --    else update user story status to preparing
@@ -60,3 +60,4 @@ $function$
 
 CREATE OR REPLACE TRIGGER after_insert AFTER INSERT ON public.tasks_task FOR EACH ROW EXECUTE FUNCTION public.task_after ();
 CREATE OR REPLACE TRIGGER after_update AFTER UPDATE ON public.tasks_task FOR EACH ROW EXECUTE FUNCTION public.task_after ();
+
