@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Standard Library
 import os
+from decimal import Decimal
 
 # import traceback
 from enum import (
@@ -30,6 +31,7 @@ from db.db_worker import (
     execute_query,
     get_all,
     get_one,
+    query_columns,
 )
 
 # from taiga_to_bpm.creatio_worker import create_receipt
@@ -253,6 +255,29 @@ WHERE
     )
 
 
+def replace_reserved_characters(cell: str) -> str:
+    return (
+        cell.replace("_", "\\_")
+        .replace("*", "\\*")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+        .replace("~", "\\~")
+        .replace("`", "\\`")
+        .replace(">", "\\>")
+        .replace("#", "\\#")
+        .replace("+", "\\+")
+        .replace("-", "\\-")
+        .replace("=", "\\=")
+        .replace("|", "\\|")
+        .replace("{", "\\{")
+        .replace("}", "\\}")
+        .replace(".", "\\.")
+        .replace("!", "\\!")
+    )
+
+
 def generate_report(user: User) -> Message:
     """
     Generate and send report to user telegram chat
@@ -284,17 +309,50 @@ def generate_report(user: User) -> Message:
             chat_id=chat_id,
             text="Error: report not found in database",
         )
-    report_query = report_query_row[0]
+    report_query: str = str(report_query_row[0])
     report_name: str = report_query_row[1]
     report_engine: str = report_query_row[2]
     slug: str = report_query_row[3]
+
+    columns = query_columns(report_query)
 
     report_result_rows = get_all(report_query)
     if not report_result_rows:
         return bot.send_message(chat_id, "No data")
 
     # convert Tuples collection to list
-    result_list = [list(row) for row in report_result_rows]
+    # result_list = [list(row) for row in report_result_rows]
+
+    # convert cells to strings and result to list of lists
+    result_list: list[list[str]] = []
+    for row in report_result_rows:
+        list_row = list(row)
+        for i, cell in enumerate(list_row):
+            if cell:
+                list_row[i] = str(cell)
+        result_list.append(list_row)
+
+    # Calculate total
+    # if last column is numeric sum it
+    # if not just add empty string
+    total = Decimal("0.0")
+    total_footer: list[str] = []
+    for row in result_list:
+        try:
+            total += Decimal(row[-1])
+        except Exception:
+            pass
+    for cell in columns:
+        total_footer.append("-")
+    total_footer[-1] = str(total)
+    total_footer[0] = "Total"
+
+    # Replace reserved characters for markdown
+    for row in result_list:
+        for i, cell in enumerate(row):
+            if cell:
+                if not validators.url(cell):
+                    row[i] = replace_reserved_characters(cell)
 
     # Make url links clickable for markdown -> pdf
     for row in result_list:
@@ -302,42 +360,12 @@ def generate_report(user: User) -> Message:
             if validators.url(cell):
                 row[i] = f"[link]({cell})"
 
-    # Get report column names
-    query = f"""
-SELECT json_object_keys(row_to_json(t)) FROM
-({report_query} LIMIT 1) t
-    """
-    report_columns = get_all(query)
-    if not report_columns:
-        return bot.send_message(
-            chat_id=chat_id,
-            text="Error: report columns not found",
-        )
-    columns = []
-    for column in report_columns:
-        columns.append(column[0])
-
     # Generate report based on engine
     match report_engine:
         case ReportEngine.PDF.value:
             # make file name
             file_name = slug + ".pdf"
             full_path = os.path.join(os.getcwd(), file_name)
-
-            # Calculate total
-            # if last column is numeric sum it
-            # if not just add empty string
-            total = 0
-            total_footer = []
-            try:
-                for row in result_list:
-                    total += row[-1]
-                for cell in columns:
-                    total_footer.append("-")
-                total_footer[-1] = total
-                total_footer[0] = "Total"
-            except Exception:
-                pass
 
             # Generate report file
             make_pdf_report(
@@ -352,14 +380,19 @@ SELECT json_object_keys(row_to_json(t)) FROM
             return bot.send_document(chat_id, open(full_path, "rb"))
 
         case ReportEngine.MD.value:
+            result_list.append(total_footer)
+
             table = PrettyTable()
             table.title = report_name
             all_columns = []
-            for column in report_columns:
+            for column in columns:
                 all_columns.append(column[0])
             table.field_names = all_columns
-            for row in result_list:
-                table.add_row(row)
+            for i, row in enumerate(result_list):
+                if i == len(result_list) - 2:
+                    table.add_row(row, divider=True)
+                else:
+                    table.add_row(row)
             response = "```\n{}```".format(table.get_string())
             return bot.send_message(chat_id, response, parse_mode="MarkdownV2")
 

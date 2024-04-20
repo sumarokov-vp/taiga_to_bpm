@@ -92,6 +92,21 @@ def execute_query(query: str, args: dict | None = None) -> None:
             conn.commit()
 
 
+def query_columns(query_sql: str) -> List[str]:
+    # Get report column names
+    query = f"""
+SELECT json_object_keys(row_to_json(t)) FROM
+({query_sql} LIMIT 1) t
+    """
+    report_columns = get_all(query)
+    if not report_columns:
+        raise ValueError("Report columns not found")
+    columns: list[str] = []
+    for column in report_columns:
+        columns.append(str(column[0]))
+    return columns
+
+
 if __name__ == "__main__":
     load_dotenv()
     get_all("SELECT * FROM bot_users")

@@ -9,7 +9,6 @@ services:
   bot:
     build:
       context: .
-      target: prod
     platform: linux/amd64 # line for building on arm processors
     volumes:
       - .env:/app/.env

@@ -69,15 +69,6 @@ combine_as_imports= "True"
 include_trailing_comma= "True"
 force_grid_wrap= 2
 
-[tool.mypy]
-pythonpath = ".venv/lib/python3.12/site-packages"
-mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
-exclude = [ './stubs' ]
-
-[[tool.mypy.overrides]]
-module = "sl_creatio_connector.*"
-ignore_missing_imports = true
-
 [tool.ruff]
 # 1. Enable flake8-bugbear (`B`) rules, in addition to the defaults.
 lint.select = [
