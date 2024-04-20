@@ -25,7 +25,7 @@ def get_one(query: str, args: dict | None = None) -> TupleRow | None:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, args)
+            cursor.execute(query, args)  # pyright: ignore[reportArgumentType]
             return cursor.fetchone()
 
 
@@ -45,7 +45,7 @@ def get_first(query: str, args: dict | None = None) -> TupleRow | None:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, args)
+            cursor.execute(query, args)  # pyright: ignore[reportArgumentType]
             return cursor.fetchall()[0]
 
 
@@ -65,7 +65,7 @@ def get_all(query: str, args: dict | None = None) -> List[TupleRow] | None:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, args)
+            cursor.execute(query, args)  # pyright: ignore[reportArgumentType]
             return cursor.fetchall()
 
 
@@ -88,7 +88,7 @@ def execute_query(query: str, args: dict | None = None) -> None:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, args)
+            cursor.execute(query, args)  # pyright: ignore[reportArgumentType]
             conn.commit()
 
 
