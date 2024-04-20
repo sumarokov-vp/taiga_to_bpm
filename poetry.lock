@@ -861,6 +861,17 @@ pyyaml = "*"
 extra = ["pygments (>=2.12)"]
 
 [[package]]
+name = "pypandoc"
+version = "1.13"
+description = "Thin wrapper for pandoc."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pypandoc-1.13-py3-none-any.whl", hash = "sha256:4c7d71bf2f1ed122aac287113b5c4d537a33bbc3c1df5aed11a7d4a7ac074681"},
+    {file = "pypandoc-1.13.tar.gz", hash = "sha256:31652073c7960c2b03570bd1e94f602ca9bc3e70099df5ead4cea98ff5151c1e"},
+]
+
+[[package]]
 name = "pytelegrambotapi"
 version = "4.16.1"
 description = "Python Telegram bot api."
@@ -1212,6 +1223,17 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "validators"
+version = "0.28.1"
+description = "Python Data Validation for Humans™"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "validators-0.28.1-py3-none-any.whl", hash = "sha256:890c98789ad884037f059af6ea915ec2d667129d509180c2c590b8009a4c4219"},
+    {file = "validators-0.28.1.tar.gz", hash = "sha256:5ac88e7916c3405f0ce38ac2ac82a477fcf4d90dbbeddd04c8193171fc17f7dc"},
+]
+
+[[package]]
 name = "watchdog"
 version = "4.0.0"
 description = "Filesystem events monitoring"
@@ -1266,4 +1288,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "37768e4b4fc5e7f296a82d5890ad5d3caf80550de8125be03e5726a9e3722011"
+content-hash = "ce8ae7a99da2c813fbd9ed766a7054f3dbeba24d62a96b49821ff63c2bc1bc7e"

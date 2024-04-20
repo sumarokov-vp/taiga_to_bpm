@@ -31,9 +31,9 @@ def test_start_for_not_known_user():
 
 def test_first_report():
     with TUser(chat_id=EXISTING_CHAT_ID, delete_on_exit=False) as test_user:
-        test_user.callback_query.data = "3"
         test_user.user.bot_state = State.REPORTS_O.name
         test_user.user.save_to_redis()
+        test_user.callback_query.data = "8"
         msg = all_callback_query_handler(test_user.callback_query)
 
         assert msg
@@ -61,7 +61,7 @@ def test_commands_edit_report_3():
     with TUser(chat_id=EXISTING_CHAT_ID, delete_on_exit=False) as test_user:
         test_user.user.bot_state = State.COMMAND_EDIT_REPORTS.name
         test_user.user.save_to_redis()
-        test_user.callback_query.data = "3"
+        test_user.callback_query.data = "6"
         msg = all_callback_query_handler(test_user.callback_query)
         assert msg.text
         assert msg.text.startswith("Отчет:")

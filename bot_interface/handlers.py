@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 # Standard Library
+import os
+
 # import traceback
 from enum import (
     Enum,
@@ -8,6 +10,7 @@ from enum import (
 )
 
 # Third Party Stuff
+import validators
 from prettytable import PrettyTable
 from telebot.types import (
     CallbackQuery,
@@ -21,6 +24,7 @@ from bot_interface.bot_instance import (
     bot,
     list_buttons,
 )
+from bot_interface.pdf_output import make_pdf_report
 from core.models import User
 from db.db_worker import (
     execute_query,
@@ -56,6 +60,12 @@ class Command(Enum):
     EDIT_REPORTS_QUERY = 4
     EDIT_REPORTS_PERMISSIONS_ADD = 5
     EDIT_REPORTS_PERMISSIONS_REMOVE = 6
+
+
+class ReportEngine(Enum):
+    PDF = "pdf"
+    MD = "md"
+    RAW = "raw"
 
 
 def router(user: User) -> Message:
@@ -244,6 +254,12 @@ WHERE
 
 
 def generate_report(user: User) -> Message:
+    """
+    Generate and send report to user telegram chat
+    returns telegram message
+
+
+    """
     chat_id = user.chat_id
     if not user.bot_state_value:
         return bot.send_message(
@@ -251,8 +267,13 @@ def generate_report(user: User) -> Message:
             text="Error: no report selected",
         )
     report_id = user.bot_state_value
+
+    # Get report (query, name, engine, slug)
+    # slug is used for filename creation
+    # report_engine is used for determining report output format (pdf, md)
+    # report name is used for report title
     query = """
-    SELECT report_query, "name"
+    SELECT report_query, "name", report_engine, slug
     FROM bot_reports
     WHERE id = %(report_id)s
     """
@@ -264,11 +285,22 @@ def generate_report(user: User) -> Message:
             text="Error: report not found in database",
         )
     report_query = report_query_row[0]
-    report_name = report_query_row[1]
+    report_name: str = report_query_row[1]
+    report_engine: str = report_query_row[2]
+    slug: str = report_query_row[3]
 
-    result = get_all(report_query)
-    if not result:
+    report_result_rows = get_all(report_query)
+    if not report_result_rows:
         return bot.send_message(chat_id, "No data")
+
+    # convert Tuples collection to list
+    result_list = [list(row) for row in report_result_rows]
+
+    # Make url links clickable for markdown -> pdf
+    for row in result_list:
+        for i, cell in enumerate(row):
+            if validators.url(cell):
+                row[i] = f"[link]({cell})"
 
     # Get report column names
     query = f"""
@@ -281,17 +313,69 @@ SELECT json_object_keys(row_to_json(t)) FROM
             chat_id=chat_id,
             text="Error: report columns not found",
         )
-
-    table = PrettyTable()
-    table.title = report_name
-    all_columns = []
+    columns = []
     for column in report_columns:
-        all_columns.append(column[0])
-    table.field_names = all_columns
-    for row in result:
-        table.add_row(row)
-    response = "```\n{}```".format(table.get_string())
-    return bot.send_message(chat_id, response, parse_mode="MarkdownV2")
+        columns.append(column[0])
+
+    # Generate report based on engine
+    match report_engine:
+        case ReportEngine.PDF.value:
+            # make file name
+            file_name = slug + ".pdf"
+            full_path = os.path.join(os.getcwd(), file_name)
+
+            # Calculate total
+            # if last column is numeric sum it
+            # if not just add empty string
+            total = 0
+            total_footer = []
+            try:
+                for row in result_list:
+                    total += row[-1]
+                for cell in columns:
+                    total_footer.append("-")
+                total_footer[-1] = total
+                total_footer[0] = "Total"
+            except Exception:
+                pass
+
+            # Generate report file
+            make_pdf_report(
+                footers=total_footer,
+                title=report_name,
+                headers=columns,
+                data=result_list,
+                output_file=full_path,
+            )
+
+            # Send file
+            return bot.send_document(chat_id, open(full_path, "rb"))
+
+        case ReportEngine.MD.value:
+            table = PrettyTable()
+            table.title = report_name
+            all_columns = []
+            for column in report_columns:
+                all_columns.append(column[0])
+            table.field_names = all_columns
+            for row in result_list:
+                table.add_row(row)
+            response = "```\n{}```".format(table.get_string())
+            return bot.send_message(chat_id, response, parse_mode="MarkdownV2")
+
+        case ReportEngine.RAW.value:
+            text = ""
+            for row in result_list:
+                for cell in row:
+                    text += f"{cell}\t"
+                text += "\n"
+            return bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="MarkdownV2",
+            )
+
+    return bot.send_message(chat_id, "Unknown report engine")
 
 
 def edit_reports(user: User) -> Message:
