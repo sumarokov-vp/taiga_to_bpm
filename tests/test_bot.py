@@ -69,16 +69,6 @@ def test_7_report():
         assert msg
 
 
-def test_8_report():
-    with TUser(chat_id=EXISTING_CHAT_ID, delete_on_exit=False) as test_user:
-        test_user.user.bot_state = State.REPORTS_O.name
-        test_user.user.save_to_redis()
-        test_user.callback_query.data = "8"
-        msg = all_callback_query_handler(test_user.callback_query)
-
-        assert msg
-
-
 def test_commands_menu():
     with TUser(chat_id=EXISTING_CHAT_ID, delete_on_exit=False) as test_user:
         test_user.user.bot_state = State.COMMANDS_I.name

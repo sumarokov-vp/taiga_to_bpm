@@ -1,18 +1,16 @@
+"""
+All bot handlers are here
+"""
+
 from __future__ import annotations
 
 # Standard Library
-import os
-from decimal import Decimal
-
-# import traceback
 from enum import (
     Enum,
     auto,
 )
 
 # Third Party Stuff
-import validators
-from prettytable import PrettyTable
 from telebot.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -25,19 +23,22 @@ from bot_interface.bot_instance import (
     bot,
     list_buttons,
 )
-from bot_interface.pdf_output import make_pdf_report
+from bot_interface.report_generator import generate_report
 from core.models import User
 from db.db_worker import (
     execute_query,
     get_all,
     get_one,
-    query_columns,
 )
 
 # from taiga_to_bpm.creatio_worker import create_receipt
 
 
 class State(Enum):
+    """
+    Bot states. Saved in User.bot_state (string State.name) and stored in redis
+    """
+
     COMMANDS_I = auto()
     COMMANDS_O = auto()
     REPORTS_I = auto()
@@ -50,12 +51,11 @@ class State(Enum):
     COMMAND_EDIT_REPORTS_QUERY = auto()
 
 
-class Report(Enum):
-    HOURS_7_DAYS = 1
-    HOURS_31_DAYS = 2
-
-
 class Command(Enum):
+    """
+    Bot commands. Saved in User.bot_state_value (int Command.value) and stored in redis
+    """
+
     CLOSE_TOPAY = 1
     EDIT_REPORTS = 2
     EDIT_REPORTS_PERMISSIONS = 3
@@ -64,17 +64,23 @@ class Command(Enum):
     EDIT_REPORTS_PERMISSIONS_REMOVE = 6
 
 
-class ReportEngine(Enum):
-    PDF = "pdf"
-    MD = "md"
-    RAW = "raw"
-
-
 def router(user: User) -> Message:
+    """
+    Router for bot commands.
+    All handlers get User instance, sets State and Command to it and run this function.
+    """
     match user.bot_state:
         case State.COMMANDS_I.name:
+            # Show allowed commands, default state
+            # Used when user sends /commands bot command
             return show_allowed_commands(user.chat_id)
         case State.COMMANDS_O.name:
+            """
+            Handle command selection in /commands menu
+            Commands are stored in database in bot_commands table
+            Values of Enum Command are used as command `id` field
+              in bot_commands table
+            """
             match user.bot_state_value:
                 case Command.CLOSE_TOPAY.value:
                     pass
@@ -121,7 +127,7 @@ def router(user: User) -> Message:
     )
 
 
-@bot.callback_query_handler(func=lambda c: True)
+@bot.callback_query_handler(func=lambda c: True)  # pyright: ignore[reportUnusedVariable]
 def all_callback_query_handler(callback_query: CallbackQuery) -> Message:
     user = User.get_from_redis(callback_query.from_user.id)
     if not user:
@@ -253,162 +259,6 @@ WHERE
         text="Доступные команды",
         reply_markup=keyboard,
     )
-
-
-def replace_reserved_characters(cell: str) -> str:
-    return (
-        cell.replace("_", "\\_")
-        .replace("*", "\\*")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("(", "\\(")
-        .replace(")", "\\)")
-        .replace("~", "\\~")
-        .replace("`", "\\`")
-        .replace(">", "\\>")
-        .replace("#", "\\#")
-        .replace("+", "\\+")
-        .replace("-", "\\-")
-        .replace("=", "\\=")
-        .replace("|", "\\|")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace(".", "\\.")
-        .replace("!", "\\!")
-    )
-
-
-def generate_report(user: User) -> Message:
-    """
-    Generate and send report to user telegram chat
-    returns telegram message
-
-
-    """
-    chat_id = user.chat_id
-    if not user.bot_state_value:
-        return bot.send_message(
-            chat_id=chat_id,
-            text="Error: no report selected",
-        )
-    report_id = user.bot_state_value
-
-    # Get report (query, name, engine, slug)
-    # slug is used for filename creation
-    # report_engine is used for determining report output format (pdf, md)
-    # report name is used for report title
-    query = """
-    SELECT report_query, "name", report_engine, slug
-    FROM bot_reports
-    WHERE id = %(report_id)s
-    """
-    args = {"report_id": report_id}
-    report_query_row = get_one(query, args)
-    if not report_query_row:
-        return bot.send_message(
-            chat_id=chat_id,
-            text="Error: report not found in database",
-        )
-    report_query: str = str(report_query_row[0])
-    report_name: str = report_query_row[1]
-    report_engine: str = report_query_row[2]
-    slug: str = report_query_row[3]
-
-    columns = query_columns(report_query)
-
-    report_result_rows = get_all(report_query)
-    if not report_result_rows:
-        return bot.send_message(chat_id, "No data")
-
-    # convert Tuples collection to list
-    # result_list = [list(row) for row in report_result_rows]
-
-    # convert cells to strings and result to list of lists
-    result_list: list[list[str]] = []
-    for row in report_result_rows:
-        list_row = list(row)
-        for i, cell in enumerate(list_row):
-            if cell:
-                list_row[i] = str(cell)
-        result_list.append(list_row)
-
-    # Calculate total
-    # if last column is numeric sum it
-    # if not just add empty string
-    total = Decimal("0.0")
-    total_footer: list[str] = []
-    for row in result_list:
-        try:
-            total += Decimal(row[-1])
-        except Exception:
-            pass
-    for cell in columns:
-        total_footer.append("-")
-    total_footer[-1] = str(total)
-    total_footer[0] = "Total"
-
-    # Replace reserved characters for markdown
-    for row in result_list:
-        for i, cell in enumerate(row):
-            if cell:
-                if not validators.url(cell):
-                    row[i] = replace_reserved_characters(cell)
-
-    # Make url links clickable for markdown -> pdf
-    for row in result_list:
-        for i, cell in enumerate(row):
-            if validators.url(cell):
-                row[i] = f"[link]({cell})"
-
-    # Generate report based on engine
-    match report_engine:
-        case ReportEngine.PDF.value:
-            # make file name
-            file_name = slug + ".pdf"
-            full_path = os.path.join(os.getcwd(), file_name)
-
-            # Generate report file
-            make_pdf_report(
-                footers=total_footer,
-                title=report_name,
-                headers=columns,
-                data=result_list,
-                output_file=full_path,
-            )
-
-            # Send file
-            return bot.send_document(chat_id, open(full_path, "rb"))
-
-        case ReportEngine.MD.value:
-            result_list.append(total_footer)
-
-            table = PrettyTable()
-            table.title = report_name
-            all_columns = []
-            for column in columns:
-                all_columns.append(column[0])
-            table.field_names = all_columns
-            for i, row in enumerate(result_list):
-                if i == len(result_list) - 2:
-                    table.add_row(row, divider=True)
-                else:
-                    table.add_row(row)
-            response = "```\n{}```".format(table.get_string())
-            return bot.send_message(chat_id, response, parse_mode="MarkdownV2")
-
-        case ReportEngine.RAW.value:
-            text = ""
-            for row in result_list:
-                for cell in row:
-                    text += f"{cell}\t"
-                text += "\n"
-            return bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode="MarkdownV2",
-            )
-
-    return bot.send_message(chat_id, "Unknown report engine")
 
 
 def edit_reports(user: User) -> Message:

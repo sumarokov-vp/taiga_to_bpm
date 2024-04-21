@@ -13,6 +13,12 @@ from db.redis_instance import redis_connection
 
 
 class User(BaseModel):
+    """
+    User model. Contains all the information about the user.
+    Can save and load itself from the Redis and DB.
+    Can get itself from the DB and Redis.
+    """
+
     chat_id: PositiveInt
     name: str | None = None
     full_name: str | None = None
@@ -57,6 +63,10 @@ class User(BaseModel):
 
 
 class TUser:
+    """
+    Usser model for testing purposes.
+    """
+
     user: User
     tg_user: telebot_types.User
     callback_query: telebot_types.CallbackQuery
@@ -101,7 +111,7 @@ class TUser:
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb):  # pyright: ignore[reportUnknownVariableType]
         if self._delete_on_exit:
             self.delete()
         pass

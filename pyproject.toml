@@ -21,6 +21,7 @@ mkdocstrings = "^0.24.3"
 mkdocstrings-python = "^1.9.2"
 pypandoc = "^1.13"
 validators = "^0.28.1"
+types-requests = "^2.31.0.20240406"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -96,4 +97,11 @@ exclude = [
 "easy_p2p/__main__.py" = [
   "F401", # disable unused imports for main.py - import handlers from other files
   "E402", # disable module level import not at top of file for main.py - import handlers from other files
+]
+
+[tool.mypy]
+# ignore_missing_imports = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/stubs"
+exclude = [
+  'stubs/',
 ]
