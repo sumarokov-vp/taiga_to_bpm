@@ -9,7 +9,10 @@ from prettytable import PrettyTable
 from telebot.types import Message
 
 # My Stuff
-from bot_interface.bot_instance import bot
+from bot_interface.bot_instance import (
+    bot,
+    replace_reserved_characters,
+)
 from bot_interface.pdf_output import make_pdf_report
 from core.models import User
 from db.db_worker import (
@@ -29,29 +32,6 @@ class ReportEngine(Enum):
     PDF = "pdf"
     MD = "md"
     RAW = "raw"
-
-
-def replace_reserved_characters(cell: str) -> str:
-    return (
-        cell.replace("_", "\\_")
-        .replace("*", "\\*")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("(", "\\(")
-        .replace(")", "\\)")
-        .replace("~", "\\~")
-        .replace("`", "\\`")
-        .replace(">", "\\>")
-        .replace("#", "\\#")
-        .replace("+", "\\+")
-        .replace("-", "\\-")
-        .replace("=", "\\=")
-        .replace("|", "\\|")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace(".", "\\.")
-        .replace("!", "\\!")
-    )
 
 
 def generate_report(user: User) -> Message:

@@ -1,14 +1,29 @@
 # Standard Library
 from os import environ
-from typing import List
+from typing import (
+    List,
+    Optional,
+)
 
 # Third Party Stuff
 from dotenv import load_dotenv
 from psycopg import connect
 from psycopg.rows import TupleRow
 
+load_dotenv()
+TAIGA_DB_URL = environ.get("DB_URL")
+CREATIO_DB_URL = environ.get("CREATIO_DB_URL")
+if not TAIGA_DB_URL:
+    raise ValueError("DB_URL environment variable not set")
+if not CREATIO_DB_URL:
+    raise ValueError("CREATIO_DB_URL environment variable not set")
 
-def get_one(query: str, args: dict | None = None) -> TupleRow | None:
+
+def get_one(
+    query: str,
+    args: Optional[dict] = None,
+    db_url: Optional[str] = TAIGA_DB_URL,
+) -> TupleRow | None:
     """
     Returns one row from the database.
     Example:
@@ -20,7 +35,6 @@ def get_one(query: str, args: dict | None = None) -> TupleRow | None:
 
         args = {"chat_id": chat_id}
     """
-    db_url = environ.get("DB_URL")
     if not db_url:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
@@ -29,7 +43,11 @@ def get_one(query: str, args: dict | None = None) -> TupleRow | None:
             return cursor.fetchone()
 
 
-def get_first(query: str, args: dict | None = None) -> TupleRow | None:
+def get_first(
+    query: str,
+    args: Optional[dict] = None,
+    db_url: Optional[str] = TAIGA_DB_URL,
+) -> TupleRow | None:
     """
     Example:
 
@@ -40,7 +58,6 @@ def get_first(query: str, args: dict | None = None) -> TupleRow | None:
 
         args = {"chat_id": chat_id}
     """
-    db_url = environ.get("DB_URL")
     if not db_url:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
@@ -49,7 +66,11 @@ def get_first(query: str, args: dict | None = None) -> TupleRow | None:
             return cursor.fetchall()[0]
 
 
-def get_all(query: str, args: dict | None = None) -> List[TupleRow] | None:
+def get_all(
+    query: str,
+    args: Optional[dict] = None,
+    db_url: Optional[str] = TAIGA_DB_URL,
+) -> list[TupleRow] | None:
     """
     Example:
 
@@ -60,7 +81,6 @@ def get_all(query: str, args: dict | None = None) -> List[TupleRow] | None:
 
         args = {"chat_id": chat_id}
     """
-    db_url = environ.get("DB_URL")
     if not db_url:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
@@ -69,7 +89,11 @@ def get_all(query: str, args: dict | None = None) -> List[TupleRow] | None:
             return cursor.fetchall()
 
 
-def execute_query(query: str, args: dict | None = None) -> None:
+def execute_query(
+    query: str,
+    args: Optional[dict] = None,
+    db_url: Optional[str] = TAIGA_DB_URL,
+) -> None:
     """
     Example:
         query =
@@ -83,7 +107,6 @@ def execute_query(query: str, args: dict | None = None) -> None:
             "json_dump": json_dump,
         }
     """
-    db_url = environ.get("DB_URL")
     if not db_url:
         raise ValueError("DB_URL environment variable not set")
     with connect(conninfo=db_url) as conn:
@@ -92,13 +115,16 @@ def execute_query(query: str, args: dict | None = None) -> None:
             conn.commit()
 
 
-def query_columns(query_sql: str) -> List[str]:
+def query_columns(
+    query_sql: str,
+    db_url: Optional[str] = TAIGA_DB_URL,
+) -> List[str]:
     # Get report column names
     query = f"""
 SELECT json_object_keys(row_to_json(t)) FROM
 ({query_sql} LIMIT 1) t
     """
-    report_columns = get_all(query)
+    report_columns = get_all(query, db_url=db_url)
     if not report_columns:
         raise ValueError("Report columns not found")
     columns: list[str] = []

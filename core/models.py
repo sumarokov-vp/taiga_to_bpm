@@ -35,6 +35,9 @@ class User(BaseModel):
         return cls.model_validate_json(user_json)
 
     def save_to_redis(self):
+        """
+        Dump user to JSON and save it to Redis.
+        """
         redis_connection.set(str(self.chat_id), self.model_dump_json())
 
     def save_to_db(self):

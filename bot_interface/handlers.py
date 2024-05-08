@@ -19,6 +19,7 @@ from telebot.types import (
 )
 
 # My Stuff
+import bot_interface.topay_closer as topay_closer
 from bot_interface.bot_instance import (
     bot,
     list_buttons,
@@ -83,7 +84,8 @@ def router(user: User) -> Message:
             """
             match user.bot_state_value:
                 case Command.CLOSE_TOPAY.value:
-                    pass
+                    user.bot_state = topay_closer.State.STARTED.name
+                    return topay_closer.router(user)
                 case Command.EDIT_REPORTS.value:
                     return edit_reports(user)
                 case _:
@@ -127,7 +129,25 @@ def router(user: User) -> Message:
     )
 
 
-@bot.callback_query_handler(func=lambda c: True)  # pyright: ignore[reportUnusedVariable]
+@bot.message_handler(
+    commands=["reports"],
+    chat_types=["private"],
+)
+def command_reports(message: Message) -> Message:
+    user = User.get_from_redis(message.from_user.id)
+    if not user:
+        user = User(
+            chat_id=message.from_user.id,
+            name=message.from_user.username,
+            full_name=message.from_user.full_name,
+        )
+        user.save_to_redis()
+
+    user.bot_state = State.REPORTS_I.name
+    return router(user)
+
+
+@bot.callback_query_handler(func=lambda c: (c.data.startswith("main#")))
 def all_callback_query_handler(callback_query: CallbackQuery) -> Message:
     user = User.get_from_redis(callback_query.from_user.id)
     if not user:
@@ -142,7 +162,7 @@ def all_callback_query_handler(callback_query: CallbackQuery) -> Message:
         )
     except Exception:
         pass
-    user.bot_state_value = int(callback_query.data)
+    user.bot_state_value = int(callback_query.data.split("#")[1])
     return router(user)
 
 
@@ -169,24 +189,6 @@ def command_start(message: Message) -> Message:
 def command_my_id(message: Message):
     """ """
     bot.reply_to(message, str(message.from_user.id))
-
-
-@bot.message_handler(
-    commands=["reports"],
-    chat_types=["private"],
-)
-def command_reports(message: Message) -> Message:
-    user = User.get_from_redis(message.from_user.id)
-    if not user:
-        user = User(
-            chat_id=message.from_user.id,
-            name=message.from_user.username,
-            full_name=message.from_user.full_name,
-        )
-        user.save_to_redis()
-
-    user.bot_state = State.REPORTS_I.name
-    return router(user)
 
 
 @bot.message_handler(
@@ -225,7 +227,7 @@ WHERE
             chat_id=chat_id,
             text=txt,
         )
-    keyboard = list_buttons(reports)
+    keyboard = list_buttons(reports, "main#")
 
     User.set_state(chat_id, State.REPORTS_O.name)
 
@@ -251,7 +253,7 @@ WHERE
     commands = get_all(query, args)
     if not commands:
         return bot.send_message(chat_id=chat_id, text="You have no allowed commands")
-    keyboard = list_buttons(commands)
+    keyboard = list_buttons(commands, "main#")
 
     User.set_state(chat_id, State.COMMANDS_O.name)
     return bot.send_message(
@@ -277,7 +279,7 @@ def edit_reports(user: User) -> Message:
             chat_id=user.chat_id,
             text="No reports found",
         )
-    keyboard = list_buttons(reports)
+    keyboard = list_buttons(reports, "main#")
     user.bot_state = State.COMMAND_EDIT_REPORTS.name
     user.save_to_redis()
     return bot.send_message(user.chat_id, "Редактировать отчет", reply_markup=keyboard)
@@ -513,7 +515,7 @@ def edit_report_permissions_add(user: User) -> Message:
             chat_id=user.chat_id,
             text="All roles are allowed",
         )
-    keyboard = list_buttons(unallowed_roles)
+    keyboard = list_buttons(unallowed_roles, "main#")
 
     user.bot_state = State.COMMAND_EDIT_REPORTS_PERMISSIONS_ADD.name
     user.save_to_redis()
@@ -565,7 +567,7 @@ def edit_report_permissions_remove(user: User) -> Message:
             chat_id=user.chat_id,
             text="All roles are unallowed",
         )
-    keyboard = list_buttons(allowed_roles)
+    keyboard = list_buttons(allowed_roles, "main#")
     user.bot_state = State.COMMAND_EDIT_REPORTS_PERMISSIONS_REMOVE.name
     user.save_to_redis()
     return bot.send_message(
@@ -616,69 +618,3 @@ def edit_report_permissions_remove_role(user: User) -> Message:
         chat_id=user.chat_id,
         text="Permission removed",
     )
-
-
-#
-# @bot.callback_query_handler(
-#     # chat_types=["private"],
-#     func=lambda c: (c.data.startswith(f"command#{Command.CLOSE_TOPAY.value}")),
-# )
-# def callback_close_topay_command(callback_query: CallbackQuery) -> Message:
-#     # Show project list
-#     query = """
-
-
-#         SELECT id, name
-#     FROM projects_project
-#     ORDER BY name
-#     ;
-#     """
-#     projects = get_all(query)
-#     keyboard = InlineKeyboardMarkup()
-#     if not projects:
-#         return bot.send_message(
-#             chat_id=callback_query.from_user.id,
-#             text="No projects found",
-#         )
-#     for project in projects:
-#         keyboard.add(
-#             InlineKeyboardButton(
-#                 text=project[1],
-#                 callback_data=
-#                 f"command${Command.CLOSE_TOPAY.value}$project#{project[0]}",
-#             )
-#         )
-#     return bot.send_message(
-#         chat_id=callback_query.from_user.id,
-#         text="Выберите проект",
-#         reply_markup=keyboard,
-#     )
-#
-
-#
-# @bot.callback_query_handler(
-#     # chat_types=["private"],
-#     func=lambda c:
-#     (c.data.startswith(f"command${Command.CLOSE_TOPAY.value}$project#")),
-# )
-# def callback_close_topay_project(callback_query: CallbackQuery) -> Message:
-#     project_id = int(callback_query.data.split("#")[1])
-#     try:
-#         receipt = create_receipt(project_id)
-#     except Exception as e:
-#         # send traceback as file
-#         with open("traceback.txt", "w") as f:
-#             f.write(traceback.format_exc())
-#         with open("traceback.txt", "rb") as f:
-#             bot.send_document(
-#                 chat_id=callback_query.from_user.id,
-#                 document=f,
-#             )
-#         return bot.send_message(
-#             chat_id=callback_query.from_user.id,
-#             text=f"Error: {e}",
-#         )
-#     return bot.send_message(
-#         chat_id=callback_query.from_user.id,
-#         text=receipt,
-#     )
