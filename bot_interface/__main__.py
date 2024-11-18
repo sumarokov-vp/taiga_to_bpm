@@ -1,5 +1,4 @@
 # Third Party Stuff
-from telebot.types import Message
 
 # My Stuff
 from bot_interface import handlers

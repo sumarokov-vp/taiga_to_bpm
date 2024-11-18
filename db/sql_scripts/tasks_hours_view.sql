@@ -1,8 +1,10 @@
+BEGIN;
 DROP VIEW IF EXISTS bpm_tasks_hours;
+
 
 CREATE OR REPLACE VIEW bpm_tasks_hours AS
 SELECT
-	task.id,
+    task.id,
 	ROUND(REPLACE(COALESCE((attr.attributes_values::json -> fields.tracked_hours_id::varchar)::varchar, '0'), 'null', '0')::NUMERIC + REPLACE(COALESCE((attr.attributes_values::json -> fields.tracked_minutes_id::varchar)::varchar, '0'), 'null', '0')::NUMERIC / 60, 2) AS hours,
 	u.full_name AS assignee,
 	(attr.attributes_values::json -> fields.done_date_id::text)::text::DATE AS done_date,
@@ -17,4 +19,4 @@ FROM
 	LEFT JOIN projects_project ON task.project_id = projects_project.id
 	ORDER BY done_date DESC, assignee
 ;
-
+COMMIT;

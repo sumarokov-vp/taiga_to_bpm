@@ -11,11 +11,12 @@ from typing import (
 # Third Party Stuff
 from psycopg import connect
 from psycopg.rows import TupleRow
-from sl_creatio_connector.constants import ODATA_version
-from sl_creatio_connector.creatio import Creatio
 
 # My Stuff
 from db.db_worker import execute_query
+
+from .creatio import Creatio
+from .creatio_constants import ODATA_version
 
 
 def create_receipt(project_id: int) -> Receipt:
@@ -97,7 +98,11 @@ class Receipt:
             raise ValueError("Receipt not created")
         try:
             error = receipt_odata_dict["error"]
-            raise ValueError(f"Error creating receipt: {error}\nSent data: {dict_data}")
+            raise ValueError(
+                f"Error creating receipt: {error}\n"
+                f"Sent data: {dict_data}\n"
+                f"Response: {receipt_odata_dict}"
+            )
         except KeyError:
             pass
         receipt_id = str(receipt_odata_dict["Id"])
@@ -153,7 +158,10 @@ class Task:
     project_id: Optional[int] = None
     guid: Optional[str] = None
 
-    def push_to_creatio(self, receipt_id: str):
+    def push_to_creatio(self, receipt_id: str) -> str:
+        """
+        return: task_id - guid as string
+        """
         if not self.bpm_user_guid:
             raise ValueError(
                 f"Task {self.ref} executor not in bpm_users table\n"
@@ -187,6 +195,8 @@ class Task:
             pass
         self.guid = created_task["Id"]
         print(f"Created task {self.ref} - {self.guid}")
+        assert self.guid
+        return self.guid
 
 
 def get_tasks(project_id: int) -> List[Task]:

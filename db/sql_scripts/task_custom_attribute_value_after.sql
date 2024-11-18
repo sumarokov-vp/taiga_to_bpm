@@ -1,8 +1,8 @@
-create or replace function public.task_custom_attribute_value_after()
-returns trigger
-language plpgsql
-as
-    $function$
+CREATE OR REPLACE FUNCTION public.task_custom_attribute_value_after()
+RETURNS trigger
+LANGUAGE plpgsql
+AS
+$function$
 DECLARE
 	us_id int;
 	estimate_hours numeric;
@@ -55,33 +55,14 @@ BEGIN
 
 	-- User story actions
 	IF us_id IS NOT NULL THEN
-		-- update user story estimate total
-		UPDATE
-			custom_attributes_userstorycustomattributesvalues v
-		SET
-			attributes_values = attributes_values || jsonb_build_object (s.us_estimate_total_id::VARCHAR,
-				(
-					SELECT
-						sum(estimate)
-					FROM
-						bpm_tasks_hours h
-					WHERE
-						user_story_id = us_id
-					GROUP BY
-						user_story_id)::varchar)
-			FROM
-				tasks_task t,
-				bpm_project_settings s
-			WHERE
-				t.id = NEW.task_id
-				AND v.user_story_id = t.user_story_id
-				AND s.project_id = t.project_id;
+		-- update user story
+        PERFORM update_us_estimate_total(NEW.task_id);
+        PERFORM update_us_estimate_not_finished(NEW.task_id);
+        PERFORM update_us_tracked_total(NEW.task_id);
 	END IF;
 	RETURN NEW;
 END;
-$function$
-;
+$function$;
 
-CREATE OR REPLACE TRIGGER after_insert AFTER INSERT ON public.custom_attributes_taskcustomattributesvalues FOR EACH ROW EXECUTE FUNCTION public.task_custom_attribute_value_after ();
-CREATE OR REPLACE TRIGGER after_update AFTER UPDATE ON public.custom_attributes_taskcustomattributesvalues FOR EACH ROW EXECUTE FUNCTION public.task_custom_attribute_value_after ();
-
+CREATE OR REPLACE TRIGGER after_insert AFTER INSERT ON public.custom_attributes_taskcustomattributesvalues FOR EACH ROW EXECUTE FUNCTION public.task_custom_attribute_value_after();
+CREATE OR REPLACE TRIGGER after_update AFTER UPDATE ON public.custom_attributes_taskcustomattributesvalues FOR EACH ROW EXECUTE FUNCTION public.task_custom_attribute_value_after();

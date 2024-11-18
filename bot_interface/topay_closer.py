@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 # Standard Library
-import os
 import traceback
 from enum import (
     Enum,
@@ -22,7 +21,6 @@ from bot_interface.bot_instance import (
 )
 from core.models import User
 from db.db_worker import (
-    CREATIO_DB_URL,
     execute_query,
     get_all,
 )
@@ -30,6 +28,8 @@ from taiga_to_bpm.creatio_worker import (
     Receipt,
     get_tasks,
 )
+
+from .utils.send_file import SendFile
 
 # from taiga_to_bpm.creatio_worker import create_receipt
 
@@ -88,6 +88,11 @@ def all_callback_query_handler(callback_query: CallbackQuery) -> Message:
 
 def create_new_receipt(user: User) -> Message:
     project_id = user.bot_state_value
+    send_file = SendFile(bot, user.chat_id)
+    bot.send_message(
+        chat_id=user.chat_id,
+        text="Creating receipt",
+    )
     if not project_id:
         return bot.send_message(
             chat_id=user.chat_id,
@@ -97,34 +102,32 @@ def create_new_receipt(user: User) -> Message:
         tasks = get_tasks(project_id)
         desk_guid = tasks[0].desk_guid
         receipt = Receipt.new(desk_guid)
+        bot.send_message(
+            chat_id=user.chat_id,
+            text="Receipt created, adding tasks to it",
+        )
     except Exception as e:
+        send_file.text(traceback.format_exc())
         txt = replace_reserved_characters(str(e))
         return bot.send_message(
             chat_id=user.chat_id,
             text=txt,
         )
+
     try:
         for task in tasks:
             task.push_to_creatio(receipt.guid)
-    except Exception as e:
-        # rollback
-        receipt.delete(CREATIO_DB_URL)
-        # send traceback as file
-        with open("traceback.txt", "w") as f:
-            f.write(traceback.format_exc())
-        with open("traceback.txt", "rb") as f:
-            bot.send_document(
+            bot.send_message(
                 chat_id=user.chat_id,
-                document=f,
+                text=f"Task {task.id} added to receipt",
             )
+    except Exception as e:
+        send_file.text(traceback.format_exc())
         txt = replace_reserved_characters(str(e))
-        msg = bot.send_message(
+        return bot.send_message(
             chat_id=user.chat_id,
             text=txt,
         )
-        # delete traceback file
-        os.remove("traceback.txt")
-        return msg
 
     # Move tasks to finished (Paid) status
     query = """

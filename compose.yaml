@@ -1,11 +1,4 @@
 services:
-  # base:
-  #   build:
-  #     context: .
-  #     target: base
-  #   platform: linux/arm64 # line for building on arm processors
-  #   image: docker.hapimeets.com/smartist_taiga/base:latest
-
   bot:
     build:
       context: .
