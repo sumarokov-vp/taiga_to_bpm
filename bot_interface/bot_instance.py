@@ -4,8 +4,8 @@ from os import environ
 # Third Party Stuff
 from dotenv import load_dotenv
 from psycopg.rows import TupleRow
-from telebot import TeleBot
-from telebot.types import (
+from telebot import TeleBot  # type: ignore[import-untyped]
+from telebot.types import (  # type: ignore[import-untyped]
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )

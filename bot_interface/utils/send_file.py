@@ -2,7 +2,7 @@
 import io
 
 # Third Party Stuff
-from telebot import TeleBot
+from telebot import TeleBot  # type: ignore[import-untyped]
 
 
 class SendFile:

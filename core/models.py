@@ -5,7 +5,7 @@ from pydantic import (
     BaseModel,
     PositiveInt,
 )
-from telebot import types as telebot_types
+from telebot import types as telebot_types  # type: ignore[import-untyped]
 
 # My Stuff
 from db.db_worker import execute_query

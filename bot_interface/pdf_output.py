@@ -2,7 +2,7 @@
 from typing import Sequence
 
 # Third Party Stuff
-import pypandoc
+import pypandoc  # type: ignore[import-untyped]
 
 
 def make_pdf_report(

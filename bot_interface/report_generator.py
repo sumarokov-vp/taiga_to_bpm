@@ -6,7 +6,7 @@ from enum import Enum
 # Third Party Stuff
 import validators
 from prettytable import PrettyTable
-from telebot.types import Message
+from telebot.types import Message  # type: ignore[import-untyped]
 
 # My Stuff
 from bot_interface.bot_instance import (

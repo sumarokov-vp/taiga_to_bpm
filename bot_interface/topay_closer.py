@@ -8,7 +8,7 @@ from enum import (
 )
 
 # Third Party Stuff
-from telebot.types import (
+from telebot.types import (  # type: ignore[import-untyped]
     CallbackQuery,
     Message,
 )
