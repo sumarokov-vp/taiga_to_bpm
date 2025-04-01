@@ -23,8 +23,7 @@ class PostgresNotificationListener(INotificationListener):
         self,
         db_url: str,
         processor: IProcessDBNotification,
-        channels: List[str] = ["new_record_channel"],
-        logger: Optional[logging.Logger] = None,
+        channels: List[str] = ["taiga_timeline_channel"],
         reconnect_delay: int = 5,
         poll_timeout: int = 10000,
     ) -> None:
@@ -34,14 +33,13 @@ class PostgresNotificationListener(INotificationListener):
             db_url: PostgreSQL connection URL
             processor: Object implementing IProcessDBNotification interface
             channels: List of notification channels to listen on
-            logger: Optional logger instance
             reconnect_delay: Seconds to wait before reconnecting on error
             poll_timeout: Timeout in milliseconds for poll operations
         """
         self.db_url = db_url
         self.processor = processor
         self.channels = channels
-        self.logger = logger or logging.getLogger("postgres_listener")
+        self.logger = logging.getLogger("postgres_listener")
         self.reconnect_delay = reconnect_delay
         self.poll_timeout = poll_timeout
         self.running = False

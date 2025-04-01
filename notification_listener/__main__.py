@@ -9,16 +9,23 @@ from dotenv import load_dotenv
 
 # My Stuff
 # Local Application
+from bot_interface.bot_instance import bot
 from notification_listener.listener import (
     PostgresNotificationListener,
 )
 from notification_listener.processor import (
     DefaultNotificationProcessor,
 )
+from notification_listener.telegram_sender import (
+    TelegramNotificationSender,
+)
+from notification_listener.data_storage import (
+    get_data_storage,
+)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed to DEBUG to see all detailed logs
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
@@ -35,12 +42,20 @@ def main() -> None:
         logger.error("DB_URL environment variable not set")
         sys.exit(1)
 
-    # Initialize processor and listener
-    processor = DefaultNotificationProcessor(logger)
+    # Get Taiga base URL from environment or use default
+    taiga_base_url = os.environ.get("TAIGA_URL", "https://taiga.smartist.dev")
+
+    # Initialize data storage, telegram sender, processor and listener
+    data_storage = get_data_storage()
+    telegram_sender = TelegramNotificationSender(
+        data_storage=data_storage,
+        bot=bot,
+        base_url=taiga_base_url,
+    )
+    processor = DefaultNotificationProcessor(senders=[telegram_sender])
     listener = PostgresNotificationListener(
         db_url=db_url,
         processor=processor,
-        logger=logger,
     )
 
     # Set up signal handling for graceful shutdown

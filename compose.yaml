@@ -5,8 +5,21 @@ services:
     platform: linux/amd64 # line for building on arm processors
     volumes:
       - .env:/app/.env
-    image: docker.hapimeets.com/smartist_taiga/bot:latest
+    image: registry.hapimeets.com/hapimeets/container-registry/bot:latest
     command: "python -m bot_interface"
+    restart: always
+
+  notifier:
+    build:
+      context: .
+    platform: linux/amd64
+    volumes:
+      - .env:/app/.env
+    image: registry.hapimeets.com/hapimeets/container-registry/bot:latest
+    command: "python -m notification_listener"
+    restart: always
+    depends_on:
+      - bot
 
   redis:
     image: redis:latest
