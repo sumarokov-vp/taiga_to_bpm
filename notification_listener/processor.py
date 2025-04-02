@@ -1,31 +1,38 @@
 # Standard Library
 import logging
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-)
+from typing import Dict, Any
 
-# My Stuff
 # Local Application
-from notification_listener.interfaces import (
-    IProcessDBNotification,
-    INotificationSender,
+from notification_listener.interfaces import IProcessDBNotification
+from notification_listener.application.notification_sender import (
+    NotificationSenderFactory,
+    create_legacy_sender,
 )
 
 
-class DefaultNotificationProcessor(IProcessDBNotification):
-    """Default implementation of notification processor"""
+class Processor(IProcessDBNotification):
+    """Processes database notifications"""
 
-    def __init__(self, senders: Optional[List[INotificationSender]] = None) -> None:
-        """Initialize processor with notification senders
+    def __init__(
+        self, data_storage, bot, base_url: str = "https://taiga.smartist.dev"
+    ) -> None:
+        """Initialize processor with data storage and bot
 
         Args:
-            senders: List of notification senders to use (optional)
+            data_storage: Data storage for database access
+            bot: Telegram bot instance
+            base_url: Base URL for Taiga instance
         """
-        self.logger = logging.getLogger("notification_processor")
-        self.senders: List[INotificationSender] = senders or []
+        self.logger = logging.getLogger("processor")
+        self.data_storage = data_storage
+
+        # Create modern event processor
+        self.event_processor = NotificationSenderFactory.create_processor(
+            data_storage, bot, base_url
+        )
+
+        # For backward compatibility
+        self.legacy_sender = create_legacy_sender(data_storage, bot, base_url)
 
     def process(self, payload: Dict[str, Any]) -> None:
         """Process a notification payload
@@ -33,17 +40,13 @@ class DefaultNotificationProcessor(IProcessDBNotification):
         Args:
             payload: The notification payload as a dictionary
         """
-        self.logger.info(f"Processing notification: {payload}")
+        self.logger.info("Processing notification payload")
+        try:
+            # Process event using new architecture
+            self.event_processor.process(payload)
 
-        # Distribute notification to all registered senders
-        for sender in self.senders:
-            try:
-                sender.send_notification(payload)
-            except Exception as e:
-                self.logger.error(f"Error sending notification: {str(e)}")
-
-        # Additional processing logic can be added here
-        # - Update a cache
-        # - Call a webhook
-        # - Send to message queue
-        # - Update application state
+            # For backward compatibility, also send directly through legacy sender
+            # This can be removed when the transition is complete
+            # self.legacy_sender.send_notification(payload)
+        except Exception as e:
+            self.logger.exception(f"Error processing notification: {str(e)}")

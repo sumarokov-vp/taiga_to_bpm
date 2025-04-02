@@ -14,7 +14,7 @@ from notification_listener.listener import (
     PostgresNotificationListener,
 )
 from notification_listener.processor import (
-    DefaultNotificationProcessor,
+    Processor,
 )
 from notification_listener.telegram_sender import (
     TelegramNotificationSender,
@@ -45,14 +45,13 @@ def main() -> None:
     # Get Taiga base URL from environment or use default
     taiga_base_url = os.environ.get("TAIGA_URL", "https://taiga.smartist.dev")
 
-    # Initialize data storage, telegram sender, processor and listener
+    # Initialize data storage, processor and listener
     data_storage = get_data_storage()
-    telegram_sender = TelegramNotificationSender(
+    processor = Processor(
         data_storage=data_storage,
         bot=bot,
         base_url=taiga_base_url,
     )
-    processor = DefaultNotificationProcessor(senders=[telegram_sender])
     listener = PostgresNotificationListener(
         db_url=db_url,
         processor=processor,
