@@ -1,6 +1,6 @@
 # Standard Library
 import logging
-from typing import Dict, Any, List, Optional
+from typing import List
 
 # Local Application
 from notification_listener.domain.common.notifications import INotificationFormatter

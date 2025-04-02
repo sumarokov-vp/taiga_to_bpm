@@ -1,5 +1,5 @@
 # Standard Library
-from typing import Dict, Any, List
+from typing import List
 
 # Local Application
 from notification_listener.domain.event.models import EventData

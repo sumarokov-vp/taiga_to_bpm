@@ -1,5 +1,4 @@
 # Standard Library
-from typing import Dict, Any, Optional
 
 # Local Application
 from notification_listener.domain.task.models import Task

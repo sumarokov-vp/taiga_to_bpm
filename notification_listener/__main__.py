@@ -16,9 +16,6 @@ from notification_listener.listener import (
 from notification_listener.processor import (
     Processor,
 )
-from notification_listener.telegram_sender import (
-    TelegramNotificationSender,
-)
 from notification_listener.data_storage import (
     get_data_storage,
 )

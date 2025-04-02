@@ -1,6 +1,6 @@
 # Standard Library
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Local Application
 from notification_listener.domain.task.interfaces import ITaskEventHandler

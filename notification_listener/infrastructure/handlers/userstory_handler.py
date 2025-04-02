@@ -1,6 +1,5 @@
 # Standard Library
 import logging
-from typing import Dict, Any
 
 # Local Application
 from notification_listener.domain.event.models import EventData

@@ -12,7 +12,10 @@ from telebot import TeleBot  # type: ignore
 
 # My Stuff
 # Local Application
-from notification_listener.interfaces import INotificationSender, IDataStorage
+from notification_listener.interfaces import (
+    IDataStorage,
+    INotificationSender,
+)
 
 
 class TelegramNotificationSender(INotificationSender):
