@@ -61,9 +61,8 @@ class PostgresDataStorage(IDataStorage):
         """
         self.logger.info(f"DEBUG: get_taiga_user_by_id called with user_id={user_id}")
         query = """
-        SELECT u.id, u.username, u.full_name, u.username as name, b.telegram_id
+        SELECT u.id, u.username, u.full_name, u.username as name
         FROM users_user u
-        LEFT JOIN bot_users b ON b.taiga_id = u.id
         WHERE u.id = %(user_id)s
         """
         self.logger.info(f"DEBUG: SQL query: {query}")
