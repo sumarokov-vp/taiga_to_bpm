@@ -318,11 +318,11 @@ class TelegramNotificationSender(INotificationSender):
                 # Удаляем HTML-теги для простого отображения
                 comment_text = comment_html.replace("<p>", "").replace("</p>", "")
                 comment_text = comment_text.strip()
-                
+
                 # Проверяем, был ли комментарий удален или изменен
                 comment_deleted = timeline_data.get("comment_deleted", False)
                 comment_edited = timeline_data.get("comment_edited", False)
-                
+
                 if comment_text:
                     if comment_deleted:
                         comment_line = f"💬 <b>{user_name}</b> удалил комментарий:"
@@ -343,6 +343,26 @@ class TelegramNotificationSender(INotificationSender):
                         new_status = status_change[1]
                         changes_description.append(
                             f"🔄 Статус: {old_status} → {new_status}"
+                        )
+
+                # Изменение спринта
+                if "milestone" in values_diff:
+                    milestone_change = values_diff["milestone"]
+                    if (
+                        isinstance(milestone_change, list)
+                        and len(milestone_change) >= 2
+                    ):
+                        old_milestone = milestone_change[0] or "Не в спринте"
+                        new_milestone = milestone_change[1] or "Не в спринте"
+
+                        # Если old_milestone или new_milestone - объекты, извлекаем имя
+                        if isinstance(old_milestone, dict) and "name" in old_milestone:
+                            old_milestone = old_milestone["name"]
+                        if isinstance(new_milestone, dict) and "name" in new_milestone:
+                            new_milestone = new_milestone["name"]
+
+                        changes_description.append(
+                            f"📅 Спринт: {old_milestone} → {new_milestone}"
                         )
 
                 # Изменение исполнителя
@@ -410,18 +430,18 @@ class TelegramNotificationSender(INotificationSender):
                 # Изменения в описании
                 desc_in_values = "description_diff" in values_diff
                 desc_in_timeline = "description_diff" in timeline_data
-                
+
                 if desc_in_values or desc_in_timeline:
                     # Получаем данные об изменении описания
                     if desc_in_values:
                         description_diff = values_diff.get("description_diff")
                     else:
                         description_diff = timeline_data.get("description_diff")
-                        
+
                     if description_diff:
                         desc_line = f"📝 <b>{user_name}</b> изменил описание:"
                         changes_description.append(f"{desc_line} {description_diff}")
-                
+
                 # Изменения в backlog_order
                 if "backlog_order" in values_diff:
                     changes_description.append("📋 Изменен порядок в беклоге")
@@ -478,7 +498,7 @@ class TelegramNotificationSender(INotificationSender):
             message = (
                 f"<b>Проект {project_name}</b>\n"
                 f"<b>{event_description}</b>\n"
-                f"<i>{subject}</i>\n"
+                f"<i>#{ref}: {subject}</i>\n"
             )
 
             # Добавляем информацию об изменениях, если есть
