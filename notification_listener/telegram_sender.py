@@ -245,6 +245,23 @@ class TelegramNotificationSender(INotificationSender):
                 user_id = user["id"]
                 self.logger.debug(f"Fetching taiga user with id {user_id}")
 
+                # Пытаемся получить пользователя через более прямой запрос
+                try:
+                    # Здесь предполагаем, что self.data_storage это PostgresDataStorage
+                    direct_query = """
+                    SELECT id, username, full_name, username as name
+                    FROM users_user
+                    WHERE id = %(user_id)s
+                    """
+                    args = {"user_id": user_id}
+                    direct_user = self.data_storage.get_one(direct_query, args)
+                    if direct_user and direct_user.get("full_name"):
+                        user_name = direct_user["full_name"]
+                        self.logger.info(f"Using direct query full_name: {user_name}")
+                except Exception as e:
+                    self.logger.error(f"Error getting direct user: {str(e)}")
+
+                # Если прямой запрос не сработал, используем стандартный метод
                 taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
                 if taiga_user:
                     self.logger.debug(
