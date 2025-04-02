@@ -245,9 +245,9 @@ class TelegramNotificationSender(INotificationSender):
                 user_id = user["id"]
                 self.logger.debug(f"Fetching taiga user with id {user_id}")
 
-                # Пытаемся получить пользователя через более прямой запрос
+                # Получаем информацию о пользователе напрямую из users_user
+                # Обеспечит отображение имени без зависимости от bot_users
                 try:
-                    # Здесь предполагаем, что self.data_storage это PostgresDataStorage
                     direct_query = """
                     SELECT id, username, full_name, username as name
                     FROM users_user
@@ -265,14 +265,21 @@ class TelegramNotificationSender(INotificationSender):
                             f"DEBUG: User data: {direct_user.get('full_name')}"
                         )
                         if direct_user.get("full_name"):
+                            # У нас есть полное имя - используем его
                             user_name = direct_user["full_name"]
                             self.logger.info(
                                 f"Using direct query full_name: {user_name}"
                             )
+                        elif direct_user.get("username"):
+                            # Если нет полного имени, используем имя пользователя
+                            user_name = direct_user["username"]
+                            self.logger.info(
+                                f"Using direct query username: {user_name}"
+                            )
                 except Exception as e:
                     self.logger.error(f"Error getting direct user: {str(e)}")
 
-                # Если прямой запрос не сработал, используем стандартный метод
+                # Вызываем get_taiga_user_by_id для получения telegram_id
                 self.logger.info(
                     f"DEBUG: Trying get_taiga_user_by_id query for user_id={user_id}"
                 )
