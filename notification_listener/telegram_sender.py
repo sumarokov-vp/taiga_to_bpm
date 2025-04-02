@@ -262,7 +262,7 @@ class TelegramNotificationSender(INotificationSender):
 
                     if direct_user:
                         self.logger.info(
-                            f"DEBUG: User found: full_name={direct_user.get('full_name')}, username={direct_user.get('username')}"
+                            f"DEBUG: User data: {direct_user.get('full_name')}"
                         )
                         if direct_user.get("full_name"):
                             user_name = direct_user["full_name"]
@@ -458,15 +458,21 @@ class TelegramNotificationSender(INotificationSender):
             payload_str = json.dumps(payload, indent=2, ensure_ascii=False)
             message = f"<code>{payload_str}</code>"
 
-        # В отсутствие соответствия между taiga_id и telegram_id,
-        # мы не можем идентифицировать автора изменений среди получателей уведомлений.
-        # Эта функциональность требует дополнительной настройки в базе данных.
-        self.logger.info(
-            "Unable to detect author's Telegram ID for skipping notification"
-        )
+        # Получаем telegram_id автора изменений (если он есть)
+        author_telegram_id = None
+        if "id" in user and user["id"]:
+            user_id = user["id"]
+            taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
+            if taiga_user and taiga_user.get("telegram_id"):
+                author_telegram_id = taiga_user["telegram_id"]
+                self.logger.info(f"Author telegram_id: {author_telegram_id}")
 
         # Send to each scrum master
         for telegram_id in telegram_ids:
+            # Не отправляем уведомление автору изменений
+            if author_telegram_id and telegram_id == author_telegram_id:
+                self.logger.info(f"Skipping notification to author {telegram_id}")
+                continue
             try:
                 self.bot.send_message(
                     chat_id=telegram_id, text=message, parse_mode="HTML"
