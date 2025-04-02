@@ -51,13 +51,13 @@ class IDataStorage(Protocol):
             List of user records
         """
         ...
-        
+
     def get_taiga_user_by_id(self, user_id: int) -> Dict[str, Any] | None:
         """Get Taiga user by their id
-        
+
         Args:
             user_id: Taiga user identifier
-            
+
         Returns:
             User record or None if not found
         """

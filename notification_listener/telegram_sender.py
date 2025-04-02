@@ -122,6 +122,9 @@ class TelegramNotificationSender(INotificationSender):
                 project_slug = project.get("slug")
 
             # Событие связано с историей пользователя
+            # Анализируем изменения из values_diff и comment_html
+            changes_description = []
+
             if event_type.startswith("userstories."):
                 content_type = "us"  # Используем правильный путь в URL
                 object_data = timeline_data.get("userstory", {})
@@ -129,17 +132,19 @@ class TelegramNotificationSender(INotificationSender):
             elif event_type.startswith("tasks."):
                 content_type = "task"
                 object_data = timeline_data.get("task", {})
-                
+
                 # Добавляем информацию о создателе задачи, если это создание задачи
                 if event_type == "tasks.task.create" and "owner" in object_data:
                     owner = object_data.get("owner")
                     owner_name = "Неизвестный пользователь"
-                    
+
                     if isinstance(owner, dict):
                         if "id" in owner:
                             # Получаем имя создателя из базы
                             owner_id = owner["id"]
-                            owner_data = self.data_storage.get_taiga_user_by_id(owner_id)
+                            owner_data = self.data_storage.get_taiga_user_by_id(
+                                owner_id
+                            )
                             if owner_data:
                                 if owner_data.get("full_name"):
                                     owner_name = owner_data["full_name"]
@@ -149,20 +154,22 @@ class TelegramNotificationSender(INotificationSender):
                                     owner_name = f"Пользователь #{owner_id}"
                         elif "name" in owner:
                             owner_name = owner["name"]
-                    
+
                     changes_description.append(f"📝 Создатель: {owner_name}")
-                
-                # Добавляем информацию об исполнителе задачи, если он указан при создании
+
+                # Добавляем информацию об исполнителе
                 if event_type == "tasks.task.create" and "assigned_to" in object_data:
                     assigned = object_data.get("assigned_to")
                     if assigned:
                         assigned_name = "Неизвестный пользователь"
-                        
+
                         if isinstance(assigned, dict):
                             if "id" in assigned:
                                 # Получаем имя исполнителя из базы
                                 assigned_id = assigned["id"]
-                                assigned_data = self.data_storage.get_taiga_user_by_id(assigned_id)
+                                assigned_data = self.data_storage.get_taiga_user_by_id(
+                                    assigned_id
+                                )
                                 if assigned_data:
                                     if assigned_data.get("full_name"):
                                         assigned_name = assigned_data["full_name"]
@@ -172,9 +179,9 @@ class TelegramNotificationSender(INotificationSender):
                                         assigned_name = f"Пользователь #{assigned_id}"
                             elif "name" in assigned:
                                 assigned_name = assigned["name"]
-                        
+
                         changes_description.append(f"👤 Исполнитель: {assigned_name}")
-                
+
             # Событие связано с эпиком
             elif event_type.startswith("epics."):
                 content_type = "epic"
@@ -217,19 +224,18 @@ class TelegramNotificationSender(INotificationSender):
             if project and "name" in project:
                 project_name = project.get("name", "Проект")
 
-            # Анализируем изменения из values_diff и comment_html
-            changes_description = []
-
             # Проверяем наличие комментария и пользователя
             comment_html = timeline_data.get("comment_html", "")
             user = timeline_data.get("user", {})
-            
+
             # Получаем имя пользователя - либо из payload, либо из базы данных
             user_name = "Неизвестный пользователь"
-            
+
             # Подробный лог для отладки
-            self.logger.debug(f"User data in payload: {json.dumps(user, ensure_ascii=False)}")
-            
+            self.logger.debug(
+                f"User data in payload: {json.dumps(user, ensure_ascii=False)}"
+            )
+
             if "name" in user and user["name"]:
                 # Имя есть в payload
                 user_name = user["name"]
@@ -238,10 +244,12 @@ class TelegramNotificationSender(INotificationSender):
                 # Имя нужно получить из базы данных
                 user_id = user["id"]
                 self.logger.debug(f"Fetching taiga user with id {user_id}")
-                
+
                 taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
                 if taiga_user:
-                    self.logger.debug(f"Found user in database: {json.dumps(taiga_user, ensure_ascii=False)}")
+                    self.logger.debug(
+                        f"Found user in database: {json.dumps(taiga_user)}"
+                    )
                     # Приоритет: full_name > username > id
                     if taiga_user.get("full_name"):
                         user_name = taiga_user["full_name"]
@@ -256,8 +264,12 @@ class TelegramNotificationSender(INotificationSender):
                     self.logger.warning(f"User with id {user_id} not found in database")
                     user_name = f"Пользователь #{user_id}"
             else:
-                self.logger.warning(f"No user identification in payload")
-            
+                self.logger.warning("No user identification in payload")
+
+            # Добавляем информацию о пользователе, внесшем изменения
+            if user_name != "Неизвестный пользователь":
+                changes_description.append(f"👤 Изменения внёс: {user_name}")
+
             if comment_html and comment_html.strip():
                 # Удаляем HTML-теги для простого отображения
                 comment_text = comment_html.replace("<p>", "").replace("</p>", "")
@@ -285,43 +297,57 @@ class TelegramNotificationSender(INotificationSender):
                         # Получаем старого и нового исполнителя
                         old_assigned = assigned_change[0]
                         new_assigned = assigned_change[1]
-                        
+
                         # Получаем имена исполнителей
                         old_assigned_name = "Не назначен"
                         new_assigned_name = "Не назначен"
-                        
+
                         # Обрабатываем старого исполнителя если есть
                         if old_assigned:
                             if isinstance(old_assigned, dict) and "id" in old_assigned:
                                 # Получаем имя из базы
                                 old_user_id = old_assigned["id"]
-                                old_user = self.data_storage.get_taiga_user_by_id(old_user_id)
+                                old_user = self.data_storage.get_taiga_user_by_id(
+                                    old_user_id
+                                )
                                 if old_user:
                                     if old_user.get("full_name"):
                                         old_assigned_name = old_user["full_name"]
                                     elif old_user.get("username"):
                                         old_assigned_name = old_user["username"]
                                     else:
-                                        old_assigned_name = f"Пользователь #{old_user_id}"
-                            elif isinstance(old_assigned, dict) and "name" in old_assigned:
+                                        old_assigned_name = (
+                                            f"Пользователь #{old_user_id}"
+                                        )
+                            elif (
+                                isinstance(old_assigned, dict)
+                                and "name" in old_assigned
+                            ):
                                 old_assigned_name = old_assigned["name"]
-                        
+
                         # Обрабатываем нового исполнителя если есть
                         if new_assigned:
                             if isinstance(new_assigned, dict) and "id" in new_assigned:
                                 # Получаем имя из базы
                                 new_user_id = new_assigned["id"]
-                                new_user = self.data_storage.get_taiga_user_by_id(new_user_id)
+                                new_user = self.data_storage.get_taiga_user_by_id(
+                                    new_user_id
+                                )
                                 if new_user:
                                     if new_user.get("full_name"):
                                         new_assigned_name = new_user["full_name"]
                                     elif new_user.get("username"):
                                         new_assigned_name = new_user["username"]
                                     else:
-                                        new_assigned_name = f"Пользователь #{new_user_id}"
-                            elif isinstance(new_assigned, dict) and "name" in new_assigned:
+                                        new_assigned_name = (
+                                            f"Пользователь #{new_user_id}"
+                                        )
+                            elif (
+                                isinstance(new_assigned, dict)
+                                and "name" in new_assigned
+                            ):
                                 new_assigned_name = new_assigned["name"]
-                                
+
                         changes_description.append(
                             f"👤 Исполнитель: {old_assigned_name} → {new_assigned_name}"
                         )
@@ -329,7 +355,7 @@ class TelegramNotificationSender(INotificationSender):
                 # Изменения в backlog_order
                 if "backlog_order" in values_diff:
                     changes_description.append("📋 Изменен порядок в беклоге")
-                    
+
                 # Изменения в пользовательских атрибутах
                 if "custom_attributes" in values_diff:
                     custom_attrs = values_diff["custom_attributes"]
@@ -395,8 +421,22 @@ class TelegramNotificationSender(INotificationSender):
             payload_str = json.dumps(payload, indent=2, ensure_ascii=False)
             message = f"<code>{payload_str}</code>"
 
+        # Получаем telegram_id автора изменений (если он есть)
+        author_telegram_id = None
+        if "id" in user and user["id"]:
+            user_id = user["id"]
+            taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
+            if taiga_user and taiga_user.get("telegram_id"):
+                author_telegram_id = taiga_user["telegram_id"]
+                self.logger.info(f"Author telegram_id: {author_telegram_id}")
+
         # Send to each scrum master
         for telegram_id in telegram_ids:
+            # Не отправляем уведомление автору изменений
+            if author_telegram_id and telegram_id == author_telegram_id:
+                self.logger.info(f"Skipping notification to author {telegram_id}")
+                continue
+
             try:
                 self.bot.send_message(
                     chat_id=telegram_id, text=message, parse_mode="HTML"

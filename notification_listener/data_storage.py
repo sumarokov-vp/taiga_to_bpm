@@ -49,23 +49,24 @@ class PostgresDataStorage(IDataStorage):
         args = {"role_id": role_id}
 
         return self.get_all(query, args)
-        
+
     def get_taiga_user_by_id(self, user_id: int) -> Dict[str, Any] | None:
         """Get Taiga user by their id
-        
+
         Args:
             user_id: Taiga user identifier
-            
+
         Returns:
             User record or None if not found
         """
         query = """
-        SELECT id, username, full_name, username as name
-        FROM users_user
-        WHERE id = %(user_id)s
+        SELECT u.id, u.username, u.full_name, u.username as name, b.telegram_id
+        FROM users_user u
+        LEFT JOIN bot_users b ON b.taiga_id = u.id
+        WHERE u.id = %(user_id)s
         """
         args = {"user_id": user_id}
-        
+
         return self.get_one(query, args)
 
     def execute_query(self, query: str, args: Optional[Dict[str, Any]] = None) -> None:
