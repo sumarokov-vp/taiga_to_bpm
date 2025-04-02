@@ -20,7 +20,7 @@
 
 ## Code Style Guidelines
 - **Imports**: Group by stdlib, third-party, first-party with headers
-- **Formatting**: Line length 60, use trailing commas in multi-line imports
+- **Formatting**: Line length 88, use trailing commas in multi-line imports
 - **Types**: Use Python 3.12+ typing, Pydantic for models
 - **Naming**: Use snake_case for functions/variables, PascalCase for classes
 - **Error Handling**: Use explicit try/except blocks with specific exceptions

@@ -59,19 +59,18 @@ class PostgresDataStorage(IDataStorage):
         Returns:
             User record or None if not found
         """
-        self.logger.info(f"DEBUG: get_taiga_user_by_id called with user_id={user_id}")
+        self.logger.debug(f"get_taiga_user_by_id called with user_id={user_id}")
         query = """
         SELECT u.id, u.username, u.full_name, u.username as name, b.telegram_id
         FROM users_user u
         LEFT JOIN bot_users b ON b.taiga_id = u.id
         WHERE u.id = %(user_id)s
         """
-        self.logger.info(f"DEBUG: SQL query: {query}")
+        self.logger.debug(f"SQL query: {query}")
         args = {"user_id": user_id}
-        self.logger.info(f"DEBUG: Args: {args}")
 
         result = self.get_one(query, args)
-        self.logger.info(f"DEBUG: get_taiga_user_by_id result: {result}")
+        self.logger.debug(f"get_taiga_user_by_id result: {result}")
         return result
 
     def execute_query(self, query: str, args: Optional[Dict[str, Any]] = None) -> None:
@@ -103,16 +102,16 @@ class PostgresDataStorage(IDataStorage):
             Single record or None if not found
         """
         try:
-            self.logger.info(f"DEBUG: get_one executing query: {query}")
-            self.logger.info(f"DEBUG: get_one arguments: {args}")
+            self.logger.debug(f"get_one executing query: {query}")
+            self.logger.debug(f"get_one arguments: {args}")
             with connect(conninfo=self.db_url, row_factory=dict_row) as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(query, args)
                     result = cursor.fetchone()
-                    self.logger.info(f"DEBUG: get_one result: {result}")
+                    self.logger.debug(f"get_one result: {result}")
                     return result
         except Exception as e:
-            self.logger.error(f"DEBUG: Database error in get_one: {str(e)}")
+            self.logger.error(f"Database error in get_one: {str(e)}")
             return None
 
     def get_all(

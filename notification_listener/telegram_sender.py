@@ -245,6 +245,9 @@ class TelegramNotificationSender(INotificationSender):
                 user_id = user["id"]
                 self.logger.debug(f"Fetching taiga user with id {user_id}")
 
+                # Инициализируем переменную для telegram_id автора
+                author_telegram_id = None
+
                 # Получаем информацию о пользователе напрямую из users_user
                 # Обеспечит отображение имени без зависимости от bot_users
                 try:
@@ -254,58 +257,55 @@ class TelegramNotificationSender(INotificationSender):
                     WHERE id = %(user_id)s
                     """
                     args = {"user_id": user_id}
-                    self.logger.info(
-                        f"DEBUG: Trying direct query for user_id={user_id}"
-                    )
+                    self.logger.debug(f"Trying direct query for user_id={user_id}")
                     direct_user = self.data_storage.get_one(direct_query, args)
-                    self.logger.info(f"DEBUG: Direct query result: {direct_user}")
 
                     if direct_user:
-                        self.logger.info(
-                            f"DEBUG: User data: {direct_user.get('full_name')}"
-                        )
                         if direct_user.get("full_name"):
                             # У нас есть полное имя - используем его
                             user_name = direct_user["full_name"]
-                            self.logger.info(
+                            self.logger.debug(
                                 f"Using direct query full_name: {user_name}"
                             )
                         elif direct_user.get("username"):
                             # Если нет полного имени, используем имя пользователя
                             user_name = direct_user["username"]
-                            self.logger.info(
+                            self.logger.debug(
                                 f"Using direct query username: {user_name}"
                             )
                 except Exception as e:
                     self.logger.error(f"Error getting direct user: {str(e)}")
 
                 # Вызываем get_taiga_user_by_id для получения telegram_id
-                self.logger.info(
-                    f"DEBUG: Trying get_taiga_user_by_id query for user_id={user_id}"
-                )
+                # и имени пользователя (если не получили из прямого запроса)
+                self.logger.debug(f"Getting author telegram_id for user_id={user_id}")
                 taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
-                if taiga_user:
-                    self.logger.info(
-                        f"DEBUG: Found taiga_user in database: {json.dumps(taiga_user)}"
-                    )
+
+                # Сохраняем telegram_id для проверки является ли пользователь автором
+                author_telegram_id = None
+                if taiga_user and taiga_user.get("telegram_id"):
+                    author_telegram_id = taiga_user.get("telegram_id")
+                    self.logger.debug(f"Found author telegram_id: {author_telegram_id}")
+
+                # Используем информацию о пользователе из get_taiga_user_by_id
+                # только если прямой запрос не дал результатов
+                if user_name == "Неизвестный пользователь" and taiga_user:
                     # Приоритет: full_name > username > id
                     if taiga_user.get("full_name"):
                         user_name = taiga_user["full_name"]
-                        self.logger.info(
-                            f"DEBUG: Using full_name from database: {user_name}"
+                        self.logger.debug(
+                            f"Using full_name from get_taiga_user_by_id: {user_name}"
                         )
                     elif taiga_user.get("username"):
                         user_name = taiga_user["username"]
-                        self.logger.info(
-                            f"DEBUG: Using username from database: {user_name}"
+                        self.logger.debug(
+                            f"Using username from get_taiga_user_by_id: {user_name}"
                         )
                     else:
                         user_name = f"Пользователь #{user_id}"
-                        self.logger.info(f"DEBUG: Using user ID as name: {user_name}")
-                else:
-                    self.logger.warning(
-                        f"DEBUG: User with id {user_id} not found in database"
-                    )
+                        self.logger.debug(f"Using user ID as name: {user_name}")
+                elif user_name == "Неизвестный пользователь":
+                    self.logger.warning(f"User with id {user_id} not found in database")
                     user_name = f"Пользователь #{user_id}"
             else:
                 self.logger.warning("No user identification in payload")
@@ -318,8 +318,19 @@ class TelegramNotificationSender(INotificationSender):
                 # Удаляем HTML-теги для простого отображения
                 comment_text = comment_html.replace("<p>", "").replace("</p>", "")
                 comment_text = comment_text.strip()
+                
+                # Проверяем, был ли комментарий удален или изменен
+                comment_deleted = timeline_data.get("comment_deleted", False)
+                comment_edited = timeline_data.get("comment_edited", False)
+                
                 if comment_text:
-                    changes_description.append(f"💬 {user_name}: {comment_text}")
+                    if comment_deleted:
+                        comment_line = f"💬 <b>{user_name}</b> удалил комментарий:"
+                    elif comment_edited:
+                        comment_line = f"💬 <b>{user_name}</b> изменил комментарий:"
+                    else:
+                        comment_line = f"💬 <b>{user_name}</b> прокомментировал:"
+                    changes_description.append(f"{comment_line} {comment_text}")
 
             # Проверяем наличие изменений в values_diff
             values_diff = timeline_data.get("values_diff", {})
@@ -396,6 +407,21 @@ class TelegramNotificationSender(INotificationSender):
                             f"👤 Исполнитель: {old_assigned_name} → {new_assigned_name}"
                         )
 
+                # Изменения в описании
+                desc_in_values = "description_diff" in values_diff
+                desc_in_timeline = "description_diff" in timeline_data
+                
+                if desc_in_values or desc_in_timeline:
+                    # Получаем данные об изменении описания
+                    if desc_in_values:
+                        description_diff = values_diff.get("description_diff")
+                    else:
+                        description_diff = timeline_data.get("description_diff")
+                        
+                    if description_diff:
+                        desc_line = f"📝 <b>{user_name}</b> изменил описание:"
+                        changes_description.append(f"{desc_line} {description_diff}")
+                
                 # Изменения в backlog_order
                 if "backlog_order" in values_diff:
                     changes_description.append("📋 Изменен порядок в беклоге")
@@ -450,7 +476,9 @@ class TelegramNotificationSender(INotificationSender):
 
             # Format message
             message = (
-                f"<b>{project_name}</b>\n<b>{event_description}</b>\n<i>{subject}</i>\n"
+                f"<b>Проект {project_name}</b>\n"
+                f"<b>{event_description}</b>\n"
+                f"<i>{subject}</i>\n"
             )
 
             # Добавляем информацию об изменениях, если есть
@@ -465,14 +493,9 @@ class TelegramNotificationSender(INotificationSender):
             payload_str = json.dumps(payload, indent=2, ensure_ascii=False)
             message = f"<code>{payload_str}</code>"
 
-        # Получаем telegram_id автора изменений (если он есть)
-        author_telegram_id = None
-        if "id" in user and user["id"]:
-            user_id = user["id"]
-            taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
-            if taiga_user and taiga_user.get("telegram_id"):
-                author_telegram_id = taiga_user["telegram_id"]
-                self.logger.info(f"Author telegram_id: {author_telegram_id}")
+        # Логируем найденный author_telegram_id если он был обнаружен
+        if author_telegram_id:
+            self.logger.info(f"Author telegram_id: {author_telegram_id}")
 
         # Send to each scrum master
         for telegram_id in telegram_ids:
