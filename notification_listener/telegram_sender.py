@@ -254,31 +254,51 @@ class TelegramNotificationSender(INotificationSender):
                     WHERE id = %(user_id)s
                     """
                     args = {"user_id": user_id}
+                    self.logger.info(
+                        f"DEBUG: Trying direct query for user_id={user_id}"
+                    )
                     direct_user = self.data_storage.get_one(direct_query, args)
-                    if direct_user and direct_user.get("full_name"):
-                        user_name = direct_user["full_name"]
-                        self.logger.info(f"Using direct query full_name: {user_name}")
+                    self.logger.info(f"DEBUG: Direct query result: {direct_user}")
+
+                    if direct_user:
+                        self.logger.info(
+                            f"DEBUG: User found: full_name={direct_user.get('full_name')}, username={direct_user.get('username')}"
+                        )
+                        if direct_user.get("full_name"):
+                            user_name = direct_user["full_name"]
+                            self.logger.info(
+                                f"Using direct query full_name: {user_name}"
+                            )
                 except Exception as e:
                     self.logger.error(f"Error getting direct user: {str(e)}")
 
                 # Если прямой запрос не сработал, используем стандартный метод
+                self.logger.info(
+                    f"DEBUG: Trying get_taiga_user_by_id query for user_id={user_id}"
+                )
                 taiga_user = self.data_storage.get_taiga_user_by_id(user_id)
                 if taiga_user:
-                    self.logger.debug(
-                        f"Found user in database: {json.dumps(taiga_user)}"
+                    self.logger.info(
+                        f"DEBUG: Found taiga_user in database: {json.dumps(taiga_user)}"
                     )
                     # Приоритет: full_name > username > id
                     if taiga_user.get("full_name"):
                         user_name = taiga_user["full_name"]
-                        self.logger.debug(f"Using full_name from database: {user_name}")
+                        self.logger.info(
+                            f"DEBUG: Using full_name from database: {user_name}"
+                        )
                     elif taiga_user.get("username"):
                         user_name = taiga_user["username"]
-                        self.logger.debug(f"Using username from database: {user_name}")
+                        self.logger.info(
+                            f"DEBUG: Using username from database: {user_name}"
+                        )
                     else:
                         user_name = f"Пользователь #{user_id}"
-                        self.logger.debug(f"Using user ID as name: {user_name}")
+                        self.logger.info(f"DEBUG: Using user ID as name: {user_name}")
                 else:
-                    self.logger.warning(f"User with id {user_id} not found in database")
+                    self.logger.warning(
+                        f"DEBUG: User with id {user_id} not found in database"
+                    )
                     user_name = f"Пользователь #{user_id}"
             else:
                 self.logger.warning("No user identification in payload")
