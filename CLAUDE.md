@@ -39,3 +39,25 @@
 - **Interfaces**: Use Protocol classes to define interfaces (e.g., IDataStorage, INotificationSender)
 - **Dependency Injection**: Pass dependencies as constructor parameters
 - **Factory Functions**: Use factory functions for creating complex objects with dependencies
+
+## Clean Architecture Principles
+- **Domain-Driven Design**: Create domain models that represent core business entities
+- **Layer Separation**:
+  - Domain layer: Contains business entities and rules, independent of external frameworks
+  - Application layer: Contains use cases that orchestrate the flow of data and business rules
+  - Infrastructure layer: Contains adapters for external services and frameworks
+- **Module Structure**:
+  - `domain/`: Core business entities and rules, organized by domain concept
+    - `<entity>/models.py`: Domain model data classes
+    - `<entity>/interfaces.py`: Protocols defining repositories and services
+    - `<entity>/usecases.py`: Business logic and use cases
+  - `infrastructure/`: Implementations of interfaces defined in domain layer
+    - `repositories/`: Data access implementations
+    - `<service>/`: Service implementations
+  - `application/`: Orchestration of use cases and services
+- **Dependency Rule**: Dependencies should point inward, with domain having no dependencies on outer layers
+- **Dependency Inversion**: Outer layers depend on abstractions defined in inner layers
+- **Single Responsibility**: Each class should have one reason to change
+- **Repositories**: Use repository pattern for data access
+- **Use Cases**: Define use cases for each business operation
+- **Backwards Compatibility**: Create adapter classes for migration from legacy code
